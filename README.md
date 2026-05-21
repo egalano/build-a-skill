@@ -6,6 +6,11 @@ An interactive Claude Skill that walks you through designing, writing, testing, 
 
 Instead of reading a 33-page PDF, you load this skill and your agent teaches you conversationally: it asks what you want to build, helps you nail down use cases, drafts the YAML frontmatter and instructions with you, walks you through testing, and runs a pre-flight checklist before you ship.
 
+## See it in action
+<img width="530" height="658" alt="The build-a-skill tutorial mid-conversation, asking the user a multiple-choice question about progressive disclosure" src="https://github.com/user-attachments/assets/8cf1df48-9475-47a4-bb87-39969c00d6f6" />
+
+*Mid-tutorial: the agent walks you through the concepts and checks understanding with multiple-choice prompts before moving on.*
+
 ## Credits
 
 - **Source material — owned by Anthropic**: ["The Complete Guide to Building Skills for Claude"](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf) (January 2026). All conceptual content, examples, patterns, and best practices in this skill come from that guide.
