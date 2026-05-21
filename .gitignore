@@ -1,0 +1,2 @@
+# Release artifacts (attached to GitHub Releases, not tracked in git)
+*.zip
