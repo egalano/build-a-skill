@@ -1,0 +1,240 @@
+# Release workflow.
+#
+# Trigger: pushing a tag that matches `v*` (e.g. `v1.1.0`, `v2.0.0-rc1`).
+#
+# What it does:
+#   1. Validates the skill folder structure so we never ship a broken zip.
+#   2. Builds `build-a-skill-<tag>.zip` containing the `build-a-skill/`
+#      folder at the top level - the exact shape Claude.ai's "Upload skill"
+#      and Claude Code's `~/.claude/skills/` directory both expect.
+#   3. Generates release notes by combining:
+#        - the matching `## [X.Y.Z]` section from CHANGELOG.md (if present)
+#        - the commit list since the previous tag
+#        - install instructions for Claude.ai and Claude Code
+#   4. Publishes a GitHub Release with the zip attached and the generated
+#      notes as the body. Pre-release tags (`-rc`, `-beta`, `-alpha`) are
+#      marked as pre-releases automatically.
+#
+# How to cut a release:
+#   1. Update CHANGELOG.md: move entries from `[Unreleased]` into a new
+#      `## [X.Y.Z] - YYYY-MM-DD` section.
+#   2. Bump `metadata.version` in build-a-skill/SKILL.md to match.
+#   3. Commit those changes on the default branch.
+#   4. Tag and push:  git tag vX.Y.Z && git push origin vX.Y.Z
+#   5. This workflow does the rest.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  # Required for softprops/action-gh-release to create the release and
+  # upload the zip asset.
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Full history is needed so we can compute `git log <prev-tag>..HEAD`
+          # for the changelog section. Shallow clones break that diff.
+          fetch-depth: 0
+
+      - name: Parse version from tag
+        id: version
+        run: |
+          # GITHUB_REF_NAME is e.g. "v1.1.0"; we want both the raw tag and
+          # the version-without-the-v for matching against CHANGELOG.md.
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+          # Treat -rc, -beta, -alpha, -pre as pre-releases.
+          if echo "${VERSION}" | grep -qiE '-(rc|beta|alpha|pre)'; then
+            echo "prerelease=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "prerelease=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Validate skill structure
+        # Catch the silly mistakes from checklist.md before they ship.
+        # Anything that fails here would also fail in Claude.ai's uploader,
+        # but we'd rather catch it at build time than after a public release.
+        run: |
+          set -euo pipefail
+
+          SKILL_DIR="build-a-skill"
+
+          # 1. The folder and SKILL.md must exist with exact casing.
+          test -d "${SKILL_DIR}" || { echo "::error::missing ${SKILL_DIR}/ directory"; exit 1; }
+          test -f "${SKILL_DIR}/SKILL.md" || { echo "::error::missing ${SKILL_DIR}/SKILL.md"; exit 1; }
+
+          # 2. No README.md is allowed inside the skill folder (repo-level
+          #    README is fine and lives at the root).
+          if [ -f "${SKILL_DIR}/README.md" ]; then
+            echo "::error::README.md inside the skill folder is not allowed"
+            exit 1
+          fi
+
+          # 3. Frontmatter must be delimited by --- on the first line and
+          #    again somewhere in the first 40 lines.
+          head -1 "${SKILL_DIR}/SKILL.md" | grep -q '^---$' \
+            || { echo "::error::SKILL.md missing opening --- delimiter"; exit 1; }
+          head -40 "${SKILL_DIR}/SKILL.md" | tail -n +2 | grep -q '^---$' \
+            || { echo "::error::SKILL.md missing closing --- delimiter within first 40 lines"; exit 1; }
+
+          # 4. No XML tags inside frontmatter (security: frontmatter is
+          #    injected into Claude's system prompt).
+          FRONTMATTER=$(sed -n '1,/^---$/{1!{/^---$/q;p}}' "${SKILL_DIR}/SKILL.md")
+          if echo "${FRONTMATTER}" | grep -qE '[<>]'; then
+            echo "::error::SKILL.md frontmatter contains < or > characters"
+            exit 1
+          fi
+
+          # 5. Reserved names check.
+          if echo "${FRONTMATTER}" | grep -iE '^name:.*(claude|anthropic)'; then
+            echo "::error::skill name cannot contain 'claude' or 'anthropic'"
+            exit 1
+          fi
+
+          echo "Skill structure looks good."
+
+      - name: Build skill zip
+        id: build
+        run: |
+          set -euo pipefail
+
+          ZIP_NAME="build-a-skill-${{ steps.version.outputs.tag }}.zip"
+
+          # Exclude common cruft so a release zip never ships .DS_Store,
+          # __pycache__, or a stray .git directory from a local clone.
+          zip -r "${ZIP_NAME}" build-a-skill/ \
+            -x "*.DS_Store" \
+            -x "*/.git/*" \
+            -x "*/.git" \
+            -x "*/__pycache__/*" \
+            -x "*/.pytest_cache/*"
+
+          # Verify the zip is well-formed: SKILL.md must appear at
+          # `build-a-skill/SKILL.md` inside the archive, not double-nested.
+          unzip -l "${ZIP_NAME}"
+          unzip -l "${ZIP_NAME}" | grep -qE ' build-a-skill/SKILL\.md$' \
+            || { echo "::error::zip is missing build-a-skill/SKILL.md at top level"; exit 1; }
+
+          echo "zip_name=${ZIP_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "zip_path=${PWD}/${ZIP_NAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: Generate release notes
+        id: notes
+        # We always produce a changelog. Preference order:
+        #   1. The matching section from CHANGELOG.md, if it exists.
+        #   2. Otherwise a commit list since the previous tag.
+        # We always append install instructions so the release page is
+        # self-contained for someone arriving from a Google search.
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Find the previous tag reachable from this one. The `^` is
+          # important - without it git would return the current tag itself.
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
+
+          NOTES_FILE="release-notes.md"
+
+          {
+            # --- Curated section from CHANGELOG.md (if available) ---
+            if [ -f CHANGELOG.md ] && grep -qE "^## \[${VERSION}\]" CHANGELOG.md; then
+              echo "## What's new in ${TAG}"
+              echo ""
+              # Print everything between this version's heading and the next
+              # `## [` heading (or EOF), excluding the heading line itself.
+              awk -v ver="${VERSION}" '
+                $0 ~ "^## \\[" ver "\\]" { in_section = 1; next }
+                in_section && /^## \[/  { in_section = 0 }
+                in_section              { print }
+              ' CHANGELOG.md | sed -e '/./,$!d' | awk '
+                # Trim trailing blank lines.
+                { lines[NR] = $0 }
+                END {
+                  end = NR
+                  while (end > 0 && lines[end] == "") end--
+                  for (i = 1; i <= end; i++) print lines[i]
+                }
+              '
+              echo ""
+            else
+              echo "## ${TAG}"
+              echo ""
+              echo "No CHANGELOG.md entry found for ${VERSION}. See the commit list below."
+              echo ""
+            fi
+
+            # --- Commit list since the previous tag ---
+            echo "## Commits"
+            echo ""
+            if [ -n "${PREV_TAG}" ]; then
+              echo "Changes since [\`${PREV_TAG}\`](../../releases/tag/${PREV_TAG}):"
+              echo ""
+              git log "${PREV_TAG}..${TAG}" --pretty=format:"- %s (%h)" --no-merges
+            else
+              echo "Initial release."
+              echo ""
+              git log "${TAG}" --pretty=format:"- %s (%h)" --no-merges
+            fi
+            echo ""
+            echo ""
+
+            # --- Install instructions, always included ---
+            echo "## Install"
+            echo ""
+            echo "### Claude.ai (web or desktop)"
+            echo ""
+            echo "1. Download \`${{ steps.build.outputs.zip_name }}\` from the **Assets** section below."
+            echo "2. Open Claude.ai → **Settings → Capabilities → Skills**."
+            echo "3. Click **Upload skill** and select the downloaded zip."
+            echo "4. Toggle the skill on."
+            echo ""
+            echo "### Claude Code"
+            echo ""
+            echo '```bash'
+            echo "# Download and extract into the local skills directory."
+            echo "curl -L -o build-a-skill.zip \\"
+            echo "  https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${{ steps.build.outputs.zip_name }}"
+            echo "unzip build-a-skill.zip -d ~/.claude/skills/"
+            echo '```'
+            echo ""
+            echo "### Try it"
+            echo ""
+            echo "Start a new conversation and say one of:"
+            echo ""
+            echo "- \"Walk me through building a skill\""
+            echo "- \"Teach me how to make a Claude skill\""
+            echo "- \"/build-a-skill\""
+          } > "${NOTES_FILE}"
+
+          echo "notes_path=${PWD}/${NOTES_FILE}" >> "${GITHUB_OUTPUT}"
+
+          echo "--- Generated release notes ---"
+          cat "${NOTES_FILE}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.notes_path }}
+          files: ${{ steps.build.outputs.zip_path }}
+          draft: false
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          fail_on_unmatched_files: true
