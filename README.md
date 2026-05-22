@@ -27,9 +27,12 @@ build-a-skill/
     ├── planning-and-design.md
     ├── technical-requirements.md
     ├── writing-instructions.md
-    ├── testing-and-iteration.md
-    ├── distribution.md
+    ├── scripts.md                        # When and how to bundle code
+    ├── assets.md                         # Templates and static reference files
     ├── patterns.md
+    ├── testing-and-iteration.md
+    ├── evals.md                          # Regression protection beyond the 3 lightweight tests
+    ├── distribution.md
     ├── troubleshooting.md
     ├── checklist.md
     └── resources.md
@@ -80,18 +83,20 @@ If you'd rather skim the source material than be tutored through it, the chapter
 
 Total time: about 15-30 minutes for a working first skill. The agent will:
 
-1. Ask what you want to build.
-2. Cover fundamentals (what a skill is, progressive disclosure, how it composes with MCP) - briefly, and only the parts you don't already know.
-3. Help you write 1-3 concrete use cases.
-4. Pick a success signal you actually care about.
-5. Draft your YAML frontmatter with you (especially the `description` field, which is the single most important thing).
-6. Co-write the body of `SKILL.md`.
-7. Pick the workflow pattern that fits your category.
-8. Walk you through triggering tests, functional tests, and a quick before/after comparison.
-9. Show you how to distribute it (just yourself, your team, the world, or via API).
-10. Run a pre-flight checklist before declaring you done.
+1. **Calibrate to your level.** A quick diagnostic up front - never built one? Already shipped one? - lets the tutorial skip what you already know.
+2. Ask what you want to build, or run **Demo Mode** on a canned `release-notes-writer` example if you're just here to see the shape.
+3. Cover fundamentals (what a skill is, progressive disclosure, how it composes with MCP) - briefly, and only the parts you don't already know.
+4. Help you write 1-3 concrete use cases.
+5. Pick a success signal you actually care about.
+6. Draft your YAML frontmatter with you (especially the `description` field, which is the single most important thing).
+7. Co-write the body of `SKILL.md`. Add `scripts/`, `assets/`, or an `evals/` set if your skill needs them.
+8. Pick the workflow pattern that fits your category.
+9. Walk you through triggering tests, functional tests, a quick before/after comparison, and optionally build a tiny eval set for regression protection.
+10. Show you how to distribute it (just yourself, your team, the world, or via API).
+11. Run a pre-flight checklist.
+12. **Build a real `.zip` and print the absolute install paths**, ready to paste into Claude.ai or `cp` into `~/.claude/skills/`.
 
-At the end you'll have a real folder on disk with a real `SKILL.md` you can upload immediately.
+At the end you'll have a real folder *and* a real zip on disk - both immediately installable.
 
 ## License
 
