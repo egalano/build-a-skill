@@ -21,24 +21,24 @@ Instead of reading a 33-page PDF, you load this skill and your agent teaches you
 
 ```
 build-a-skill/
-├── SKILL.md                              # The interactive tutorial flow
+├── SKILL.md                              # Interactive tutorial flow (entry point)
 └── references/
-    ├── fundamentals.md
-    ├── planning-and-design.md
-    ├── technical-requirements.md
-    ├── writing-instructions.md
-    ├── scripts.md                        # When and how to bundle code
-    ├── assets.md                         # Templates and static reference files
-    ├── patterns.md
-    ├── testing-and-iteration.md
-    ├── evals.md                          # Regression protection beyond the 3 lightweight tests
-    ├── distribution.md
-    ├── troubleshooting.md
-    ├── checklist.md
-    └── resources.md
+    ├── fundamentals.md                   # What a skill is, progressive disclosure, MCP + skills
+    ├── planning-and-design.md            # Use cases, success criteria, the three categories
+    ├── technical-requirements.md         # Folder/file rules, frontmatter fields
+    ├── writing-instructions.md           # SKILL.md body: structure, specificity, examples
+    ├── scripts.md                        # When to bundle code, invocation, security  (community-expanded)
+    ├── assets.md                         # Templates and static reference files       (community-expanded)
+    ├── patterns.md                       # Five workflow patterns to choose from
+    ├── testing-and-iteration.md          # The three lightweight tests every skill should pass
+    ├── evals.md                          # Optional 5-prompt eval set for regressions (community addition)
+    ├── distribution.md                   # Individual / team / world / API
+    ├── troubleshooting.md                # Common failure modes and fixes
+    ├── checklist.md                      # Pre-flight checklist before shipping
+    └── resources.md                      # Links to the original guide and further reading
 ```
 
-The skill itself is a small example of progressive disclosure: `SKILL.md` is the lean entry point, and the chapter-by-chapter material lives in `references/` so Claude only loads what's needed for the user's current stage.
+The skill itself is a small example of progressive disclosure: `SKILL.md` is the lean entry point, and the chapter-by-chapter material lives in `references/` so Claude only loads what's needed for the user's current stage. Files marked "community-expanded" or "community addition" go beyond the source guide; see the per-file scope notes at the top of each one for details on what's source-derived vs. practitioner convention.
 
 ## Install
 
@@ -98,10 +98,28 @@ Total time: about 15-30 minutes for a working first skill. The agent will:
 
 At the end you'll have a real folder *and* a real zip on disk - both immediately installable.
 
+## What's new
+
+### v1.1 (community packaging additions)
+
+These are improvements to the *tutorial experience*, not changes to the underlying skills format taught by the source guide.
+
+- **Experience-level diagnostic** up front so the tutorial right-sizes itself (skips Fundamentals if you already know them, etc.).
+- **Demo Mode** that runs the whole flow against a canned `release-notes-writer` example, so you can watch a skill being built before doing your own.
+- **End-of-tutorial deliverable**: the agent builds a real `.zip` and prints absolute install paths for both Claude.ai and Claude Code.
+- New reference chapters: `scripts.md`, `assets.md`, and `evals.md` (the first two expand on optional folders the source guide mentions; the third adds a regression-protection layer on top of the source guide's three lightweight tests).
+- Pre-flight checklist updated with scripts/assets/evals checks and a zip-listing sanity check.
+
+### v1.0
+
+Initial release - condensed, conversational packaging of *The Complete Guide to Building Skills for Claude* (Anthropic, January 2026) as an interactive skill.
+
 ## License
 
 MIT. See [LICENSE](./LICENSE). Adapt freely.
 
+The MIT license covers this packaging only. The underlying conceptual content - examples, patterns, and best practices - is owned by Anthropic and quoted/summarized here under fair use for educational purposes. If you redistribute or adapt this skill, preserve attribution to both the original guide and this packaging.
+
 ## Contributing
 
-If you find a chapter that's missing, a pattern that's wrong, or a question the tutorial doesn't handle well, open an issue or a PR.
+If you find a chapter that's missing, a pattern that's wrong, or a question the tutorial doesn't handle well, open an issue or a PR. When adding material that goes beyond the source guide, please flag it with a "community contribution" scope note at the top of the file (as `scripts.md`, `assets.md`, and `evals.md` do) so readers can tell source-derived material from practitioner convention.

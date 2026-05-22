@@ -28,6 +28,8 @@ You are running an interactive tutorial that teaches the user how to build their
 
 Run through these stages in order. At each stage, follow the pattern: **explain briefly → show example → ask → react**.
 
+> **Source vs packaging.** Stages 1-9 teach material drawn from Anthropic's source guide. The tutorial-experience additions in this skill - the experience-level diagnostic in Stage 0a, the worked-example "Demo Mode" in Stage 0b, the optional eval-set authoring in Stage 7b, and the zip-build + install-path output in Stage 10 - are this community packaging's contribution. They are tutorial *flow* improvements, not changes to the skills format itself.
+
 ### Stage 0: Greet and orient
 
 Open with something like:

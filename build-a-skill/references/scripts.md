@@ -1,5 +1,7 @@
 # Scripts: when and how to bundle code in a skill
 
+> **About this chapter.** Anthropic's [Complete Guide to Building Skills for Claude](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf) (January 2026) names `scripts/` as one of the optional folders inside a skill and gives short examples (notably the "advanced technique" for deterministic validation referenced in `troubleshooting.md`). This chapter expands on *when* to reach for a script, *how* to invoke one cleanly from `SKILL.md`, and *what to watch out for* security-wise. The decision rule, exit-code discipline, and example script in this file are community contributions, not verbatim from the source guide.
+
 ## The decision rule
 
 Use **instructions** when the task requires judgment, prose, or branching that benefits from Claude's reasoning.
@@ -86,12 +88,18 @@ Scripts inside a skill run with the same privileges as the host process. That's 
 
 ```python
 #!/usr/bin/env python3
-"""Validate that release notes match the team's template.
+"""Validate that release notes match the team's required section structure.
 
-Exit codes:
-  0  Valid
-  1  Schema mismatch (missing required section)
-  2  File not found
+This script is the deterministic gate that runs *after* Claude drafts the
+notes. Claude can write good prose; only a script can guarantee that the
+exact section headers exist for downstream tooling (changelog parsers,
+documentation site builders, etc.).
+
+Exit codes are part of the script's contract with SKILL.md. Claude
+branches on them, so they must stay stable across versions:
+  0  Valid - all required sections present
+  1  Schema mismatch - at least one required section is missing
+  2  File not found - the input path doesn't exist
 
 Usage:
   validate_release_notes.py --input PATH
@@ -100,28 +108,46 @@ import argparse
 import sys
 from pathlib import Path
 
+# These are the literal headers Claude must produce. Update this list
+# in lockstep with assets/release-notes.template.md - the two files
+# together define the contract.
 REQUIRED_SECTIONS = ["## Features", "## Fixes", "## Breaking changes"]
 
+
 def main() -> int:
-    p = argparse.ArgumentParser()
-    p.add_argument("--input", required=True)
+    # argparse, not sys.argv parsing, so that `--help` documents the
+    # script for both Claude and humans. Required arguments fail fast
+    # with a clear error message instead of an obscure IndexError.
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--input", required=True, help="Path to the release notes Markdown file")
     args = p.parse_args()
 
+    # Path() not raw strings - normalizes separators across OSes.
     path = Path(args.input)
     if not path.exists():
+        # Diagnostics go to stderr so the data channel (stdout) stays
+        # clean. Claude can read either; the convention helps when
+        # this script is composed into a pipeline.
         print(f"error: file not found: {path}", file=sys.stderr)
         return 2
 
+    # read_text() handles encoding; if the file isn't UTF-8 we want
+    # the exception, not silent corruption.
     body = path.read_text()
     missing = [s for s in REQUIRED_SECTIONS if s not in body]
     if missing:
         print(f"error: missing required sections: {missing}", file=sys.stderr)
         return 1
 
+    # Success message on stdout so a caller piping to grep can confirm.
     print("valid")
     return 0
 
+
 if __name__ == "__main__":
+    # sys.exit propagates the return code. Without this wrapper the
+    # process exits 0 regardless of what main() returned, which would
+    # silently break the contract above.
     sys.exit(main())
 ```
 

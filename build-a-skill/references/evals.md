@@ -1,5 +1,7 @@
 # Evals: going beyond the three lightweight tests
 
+> **About this chapter.** Anthropic's [Complete Guide to Building Skills for Claude](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf) (January 2026) introduces three lightweight tests every skill should pass: triggering, functional, and performance comparison (covered in `testing-and-iteration.md`). Those three are the *floor*. This chapter is a community contribution that adds a **regression-protection layer** on top - a small, durable eval set you re-run on every change. The "5-prompt starter", the Markdown file format, and the runner options are practitioner conventions, not verbatim from the source guide.
+
 The three lightweight tests from `references/testing-and-iteration.md` (triggering, functional, performance comparison) are enough to ship. But once your skill has users, you'll want **regression protection** - a way to know that today's tweak to the description didn't break yesterday's behavior.
 
 That's what an eval set is for. It's a tiny, version-controlled set of prompts paired with expected outcomes. Run it before every change. If it goes red, you know what broke and where.

@@ -1,5 +1,7 @@
 # Assets: bundling templates and reference files
 
+> **About this chapter.** Anthropic's [Complete Guide to Building Skills for Claude](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf) (January 2026) lists `assets/` as one of the optional skill folders ("templates, fonts, icons, anything bundled into output"). This chapter is a community expansion: the `references/` vs `assets/` boundary, the placeholder-naming discipline, the versioning advice, and the slide-deck layout at the bottom are practitioner conventions, not verbatim from the source guide.
+
 ## What `assets/` is for
 
 `assets/` is where you put **files that get embedded in or referenced by the skill's output** - templates, boilerplate, fonts, icons, snippets of structured content. Anything that should look identical every time the skill runs.
