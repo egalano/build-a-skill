@@ -23,6 +23,9 @@ Walk through this list with the user before they ship. For each item, either con
 - [ ] Error handling included
 - [ ] At least one worked example
 - [ ] References clearly linked from SKILL.md
+- [ ] If using `scripts/`: each script has `--help`, non-zero exit codes for errors, no hardcoded secrets, no interactive prompts
+- [ ] If using `assets/`: at least one concrete template with named `{placeholders}`; no secrets, no user-specific data
+- [ ] If using `evals/`: at least 5 cases (3 should-trigger, 2 should-not), pass criteria written down
 
 ## Before upload
 
@@ -31,7 +34,9 @@ Walk through this list with the user before they ship. For each item, either con
 - [ ] Verified it does NOT trigger on unrelated topics
 - [ ] Functional tests pass
 - [ ] Tool integration works (if applicable)
-- [ ] Compressed as `.zip` file (if uploading to Claude.ai)
+- [ ] Eval set runs green (if you built one)
+- [ ] Compressed as `.zip` file (Stage 10 builds this for you)
+- [ ] Zip listing shows `<skill-name>/SKILL.md` at the top level (not double-nested)
 
 ## After upload
 

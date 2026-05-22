@@ -4,7 +4,7 @@ description: Interactive tutorial that walks the user through designing, writing
 license: MIT
 metadata:
   author: agentic-education
-  version: 1.0.0
+  version: 1.1.0
   source-material: "The Complete Guide to Building Skills for Claude (Anthropic, January 2026)"
   source-credit: "Anthropic - all conceptual content, examples, and best practices originate from their guide"
   inspiration: "Ali Yahya (@alive_eth) - https://x.com/alive_eth/status/2057306868297425062 - proposed turning the PDF guide into an interactive skill"
@@ -28,18 +28,80 @@ You are running an interactive tutorial that teaches the user how to build their
 
 Run through these stages in order. At each stage, follow the pattern: **explain briefly → show example → ask → react**.
 
+> **Source vs packaging.** Stages 1-9 teach material drawn from Anthropic's source guide. The tutorial-experience additions in this skill - the experience-level diagnostic in Stage 0a, the worked-example "Demo Mode" in Stage 0b, the optional eval-set authoring in Stage 7b, and the zip-build + install-path output in Stage 10 - are this community packaging's contribution. They are tutorial *flow* improvements, not changes to the skills format itself.
+
 ### Stage 0: Greet and orient
 
 Open with something like:
 
 > "Welcome! I'm going to walk you through building a Skill for Claude. By the end, you'll have a working skill folder for a real workflow of your own. This usually takes 15-30 minutes. Sound good?"
 
-Then ask the user **what they want to build a skill for**. Use `AskUserQuestion` to offer a few starting templates plus an "Other" custom option:
+#### Stage 0a: Diagnostic - calibrate to the user's experience
+
+**Before** asking what they want to build, ask their experience level so you can right-size the tutorial. Use `AskUserQuestion`:
+
+> "How much do you already know about Claude Skills?"
+
+Options:
+- **Never built one** - I want the full walkthrough. (Recommended)
+- **Read the guide or seen one** - I get the concept, walk me through building mine.
+- **Already built one** - I'm here to refine an idea or sharpen a description.
+- **Just curious / show me a demo** - Run a worked example end-to-end on a canned project.
+
+Use the answer like this:
+
+| Answer | What you do |
+|---|---|
+| Never built one | Run all stages 1-9 in full. |
+| Read the guide / seen one | Skip Stage 1 (Fundamentals). Confirm in one sentence and move to Stage 2. |
+| Already built one | Skip Stages 1 and 4's "rules" recap. Jump to use cases (Stage 2) and frontmatter co-authoring (Stage 4), then breeze through the rest. |
+| Demo / curious | **Switch to Demo Mode** (see below). Do not ask them to pick their own use case. |
+
+#### Stage 0b: Demo Mode (worked example path)
+
+If the user picked the demo option, run the entire tutorial against a canned example skill called **`release-notes-writer`** instead of their own project. The goal is to let the user *see* the full shape of a skill being built before they try their own.
+
+How Demo Mode differs:
+
+- **Use case is pre-filled.** Tell them: "I'll build `release-notes-writer` with you - takes a list of merged PRs and produces formatted release notes in your team's voice."
+- **Skip questions that require their input** (project name, audience, etc.). Just announce the choice and explain *why* you'd make it. The user is watching, not co-authoring.
+- **Still pause at each stage.** Ask one yes/no question per stage like "Make sense? Continue?" so they can pace themselves.
+- **Write a real folder.** Create `release-notes-writer/` on disk just like the live path. They walk away with a runnable example they can read, modify, or delete.
+- **At the end**, offer: "Want to do this again for your own skill?" If yes, restart from Stage 0a as a "Never built one" user.
+
+The canned use case to draft together (use these exact details):
+
+```
+Use Case: Write release notes from merged PRs
+Trigger: "Write release notes for v2.3.0" / "Draft the release notes"
+Steps:
+  1. Read merged PR titles + descriptions since the last tag.
+  2. Group by category (Features / Fixes / Breaking).
+  3. Rewrite each in user-facing language (no "refactor", no internal jargon).
+  4. Produce Markdown matching the team's release-notes template.
+Result: A Markdown file the user can paste into GitHub Releases.
+```
+
+Frontmatter to draft together in Demo Mode:
+
+```yaml
+---
+name: release-notes-writer
+description: Drafts user-facing release notes from a list of merged pull requests. Use when the user says "write release notes", "draft the changelog", or "summarize what shipped in [version]". Produces Markdown grouped by Features / Fixes / Breaking Changes.
+license: MIT
+---
+```
+
+Demo Mode should also briefly demonstrate **at least one** `references/` file and **one** `assets/` template (a `release-notes.template.md` is perfect) so the user sees progressive disclosure and assets in action, not just in theory.
+
+#### Stage 0c: Live path - ask what they want to build
+
+For everyone except Demo Mode users, ask **what they want to build a skill for**. Use `AskUserQuestion` to offer:
 
 - A document/asset creation workflow (e.g. styled reports, slide decks, code in a specific style)
 - A multi-step process I do often (e.g. onboarding, sprint planning, release checklist)
 - An enhancement layer on top of an MCP server I already use
-- I'm just here to learn - pick a small example for me
+- I'm just here to learn - pick a small example for me *(routes them into Demo Mode)*
 
 Remember their answer. **Every subsequent stage refers back to this concrete use case.** Don't drift into abstract theory.
 
@@ -128,8 +190,10 @@ Two rules to enforce as you write:
 - **Use progressive disclosure.** If a section is getting long, ask: "Should this live in a `references/` file that Claude loads only when it needs it?" If yes, create that file and link to it from SKILL.md.
 
 Optional substages (only if relevant):
-- If their skill needs deterministic checks, suggest a script in `scripts/` (see the "Advanced technique" in `references/troubleshooting.md`).
-- If their skill produces output that should follow a template (docs, slides, etc.), suggest an `assets/` folder.
+- If their skill needs deterministic checks, computations, or external API calls that shouldn't depend on Claude getting the language right, read `references/scripts.md` and offer to add a `scripts/` folder. Co-write one script if it's the right call.
+- If their skill produces output that should follow a fixed shape (docs, slides, release notes, emails), read `references/assets.md` and offer to add an `assets/` folder with at least one template file.
+
+Use the decision rule from `references/scripts.md`: **instructions for judgment, scripts for determinism, assets for templates.** If the user is unsure, ask one clarifying question rather than defaulting to "add all three".
 
 ### Stage 6: Pick a pattern
 
@@ -153,6 +217,12 @@ Read `references/testing-and-iteration.md`. Don't try to set up a full eval harn
 
 Tie back to the success signal they chose in Stage 3.
 
+#### Stage 7b: Build a tiny eval set (optional but recommended)
+
+If the user cares about quality at scale - they're shipping to a team, or they want regression protection as they iterate - read `references/evals.md` and offer to build a **5-prompt eval set** with them, right now, before they ship.
+
+This is short: 3 should-trigger, 2 should-not-trigger prompts paired with expected outputs/behavior. Save it as `evals/eval-set.md` inside the skill folder. The whole thing should take less than 5 minutes. Skip this for one-off personal skills.
+
 ### Stage 8: Distribution
 
 Read `references/distribution.md`. Only the parts relevant to the user. Ask:
@@ -171,7 +241,48 @@ Show them only the steps that apply to their answer.
 
 Read `references/checklist.md`. Go through each item with the user. For each one, either confirm "yes, we did this" or fix the gap right now. **Do not skim** - this is the moment to catch the silly mistakes (wrong casing, missing `---` delimiters, etc.).
 
-When everything passes, tell the user where their skill folder lives, summarize what's in it, and suggest one next step (try it out, or iterate on the description if triggering is shaky).
+### Stage 10: Ship it - produce a real deliverable
+
+Once the checklist passes, produce something the user can install **immediately**. Don't just point at a folder.
+
+Run these two things from the directory that *contains* the skill folder (not from inside it):
+
+**1. Build a zip for Claude.ai upload.**
+
+```bash
+# From the parent directory of the skill folder
+zip -r <skill-name>.zip <skill-name>/ -x "*.DS_Store" "*/.git/*" "*/__pycache__/*"
+```
+
+Verify the zip is well-formed before declaring success:
+
+```bash
+unzip -l <skill-name>.zip | head
+```
+
+The listing should show `<skill-name>/SKILL.md` at the top level inside the zip - not nested in an extra folder.
+
+**2. Give the user both install paths, ready to paste.**
+
+```
+For Claude.ai:
+  1. Open Claude.ai → Settings → Capabilities → Skills
+  2. Click "Upload skill"
+  3. Select <absolute-path-to>/<skill-name>.zip
+  4. Toggle the skill on
+
+For Claude Code:
+  cp -r <absolute-path-to>/<skill-name> ~/.claude/skills/
+```
+
+Use the **absolute** path from `pwd` so the user can paste without thinking. Confirm the path exists before handing it over.
+
+**3. Wrap up.** Summarize in 3-5 lines:
+
+- What you built (`<skill-name>`).
+- What's in it (frontmatter, body, plus any `references/` / `scripts/` / `assets/` / `evals/`).
+- Where the zip and folder live (absolute paths).
+- One next step matched to the success signal they chose in Stage 3 (e.g. "Try it on this prompt: `<concrete prompt>` and watch whether Claude triggers it without you mentioning the skill name.").
 
 ## Troubleshooting during the tutorial
 
@@ -194,8 +305,11 @@ If the user gets stuck or something doesn't work mid-tutorial, consult `referenc
 | Stages 2-3 (Planning, success) | `references/planning-and-design.md` |
 | Stage 4 (Tech requirements, frontmatter) | `references/technical-requirements.md` |
 | Stage 5 (Body, instructions) | `references/writing-instructions.md` |
+| Stage 5 (Scripts substage) | `references/scripts.md` |
+| Stage 5 (Assets substage) | `references/assets.md` |
 | Stage 6 (Patterns) | `references/patterns.md` |
 | Stage 7 (Testing) | `references/testing-and-iteration.md` |
+| Stage 7b (Building an eval set) | `references/evals.md` |
 | Stage 8 (Distribution) | `references/distribution.md` |
 | Stage 9 (Checklist) | `references/checklist.md` |
 | Anytime stuck | `references/troubleshooting.md` |
